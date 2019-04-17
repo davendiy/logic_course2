@@ -9,19 +9,29 @@
 
 from itertools import product
 
-IMPLICATION = ' -> '
+# Global constants for operations
+IMPLICATION = '->'
 NOT = '!'
 PASS = ''
+OR = '|'
+AND = '&'
+XOR = '^'
+EQUIV = '<->'
 
+# parenthesis
 LEFT_PAR = '('
 RIGHT_PAR = ')'
 
-CONNECTIONS = [IMPLICATION, NOT, PASS]
-BINARY = [IMPLICATION, ]
-UNARY = [NOT, PASS]
+BINARY = (IMPLICATION, OR, AND, XOR, EQUIV)   # all the binary operations
+UNARY = (NOT, PASS)                           # all the unary operations
+CONNECTIONS = BINARY + UNARY
 
-
-FUNCTIONS = {IMPLICATION: lambda a, b: not a or b,
+# dictionary with the functions for each operation
+FUNCTIONS = {OR: lambda a, b: a or b,
+             AND: lambda a, b: a and b,
+             EQUIV: lambda a, b: (a and b) or (not a and not b),
+             XOR: lambda a, b: not((a and b) or (not a and not b)),
+             IMPLICATION: lambda a, b: not a or b,
              NOT: lambda a: not a,
              PASS: lambda a: a,
              }
@@ -36,24 +46,37 @@ class Var:
     _vars = {}
 
     def __new__(cls, name):
+        """ This is because of we need to have only one representative for each variable.
+
+        # For example
+        >>> x1 = Var('x1')
+        >>> x2 = Var('x1')
+        >>> x1 == x2
+        True
+        >>> x1 is x2      # it means that x1 and x2 are hrefs on the one object
+        True
+
+        :param name: name of variable
+        :return: object
+        """
         if name not in Var._vars:
             Var._vars[name] = object.__new__(cls)
 
         return Var._vars[name]
 
     def __init__(self, name: str):
-        assert name.isidentifier()
+        assert name.isidentifier()     # check name
         self.name = name
         self._val = 0
 
     def set_val(self, value):
-        assert value in [0, 1] or value in [True, False], 'bad value for variable'
+        assert value in (0, 1, True, False), 'bad value for variable'
         self._val = bool(value)
 
     def __call__(self, *args, **kwargs):
         return self._val
 
-    def __hash__(self):
+    def __hash__(self):          # this is for possibility to use the set of Vars
         return hash(self.name)
 
     def __str__(self):
@@ -64,8 +87,25 @@ class Var:
 
 
 class Formula:
+    """ Formula in logic of utterances
 
-    def __init__(self, main_con, variables:set, *sons):
+    Defines recursively just like math definition.
+    """
+    def __init__(self, main_con, variables: set, *sons):
+        """ Create the formula in logic of utterances with the given main connectivity,
+        that have given variables and subformulas
+
+        >>> x1 = Var('x1')
+        >>> x2 = Var('x2')
+        >>> F1 = Formula(IMPLICATION, {x1, x2}, x1, x2)
+        >>> F2 = F1.con(x2)
+        >>> F2
+        ((x1 -> x2) & x2)
+
+        :param main_con: main connectivity (binary or unary)
+        :param variables: set of Vars
+        :param sons: subformulas that are connected by main_con
+        """
         assert main_con in CONNECTIONS, 'bad connection'
         assert all(isinstance(var, Var) for var in variables)
 
@@ -75,30 +115,73 @@ class Formula:
         self._is_tautology = None
 
     def neg(self):
+        """ !self
+
+        :return: Formula
+        """
         return Formula(NOT, self.vars, self)
 
-    def implication(self, other):
+    def _binary(self, other, operation_type):
+        """ Binary operation between 2 formulas
+
+        :param other: other formula or variable
+        :param operation_type: operations from BINARY
+        :return: Formula
+        """
         assert isinstance(other, Formula) or isinstance(other, Var), 'bad component'
 
         if isinstance(other, Formula):
-            return Formula(IMPLICATION, self.vars | other.vars, self, other)
+            return Formula(operation_type, self.vars | other.vars, self, other)
         else:
-            return Formula(IMPLICATION, self.vars | {other}, self, other)
+            return Formula(operation_type, self.vars | {other}, self, other)
+
+    def implication(self, other):
+        """ self -> other
+        """
+        return self._binary(other, IMPLICATION)
+
+    def xor(self, other):
+        """ self XOR other
+        """
+        return self._binary(other, XOR)
+
+    def con(self, other):
+        """ self AND other
+        """
+        return self._binary(other, AND)
+
+    def dis(self, other):
+        """ self OR other
+        """
+        return self._binary(other, OR)
+
+    def equiv(self, other):
+        """ self <-> other
+        """
+        return self._binary(other, EQUIV)
 
     def check_tautology(self):
-        if self._is_tautology is None:
+        """ Check if this formula is tautology using full permute.
+
+        :return: bool
+        """
+        if self._is_tautology is None:      # if we haven't already check
             success = True
             for el in product([True, False], repeat=len(self.vars)):
                 tmp = list(self.vars)
-                for var, val in zip(tmp, el):
+                for var, val in zip(tmp, el):    # set value for each variable
                     var.set_val(val)
-                if not self.__call__():
+                if not self.__call__():        # compute value of formula
                     success = False
                     break
             self._is_tautology = success
         return self._is_tautology
 
     def __call__(self, *args, **kwargs):
+        """ Recursively compute value of formula.
+
+        Before it calls you need to set values to all the variables (by default they equal 0)
+        """
         return FUNCTIONS[self.main_con](*[el() for el in self.sons])
 
     def __str__(self):
@@ -136,3 +219,7 @@ if __name__ == '__main__':
     F3 = F1.implication(F2.implication(F1))
     print(F3)
     print('=|F3 -', F3.check_tautology())
+
+    F1 = Formula(IMPLICATION, {x1, x2}, x1, x2)
+    F2 = F1.con(x2)
+    print('\n\n', F2)
