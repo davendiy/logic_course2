@@ -9,7 +9,7 @@
 
 from parser import *
 
-print("Syntax: not - '!', implication - '->'")
+print("Syntax: not - '!', implication - '->', and - '&', or - '|', equiv - '<->', xor - '^'")
 print("Each formula should be in parenthesis except variants when formula is just one variable.")
 print("There is no still possibility to use constants in formula.")
 print("Variables might be like python identifier ('x', 'lkajf893483', '_new_var_' for example)\n")
