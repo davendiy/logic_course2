@@ -63,7 +63,7 @@ def modus_pones(f: Formula, f_g: Formula) -> Formula:
     return res
 
 
-def theorem_L(f: Formula, st_index: int) -> deque:
+def theorem_L(f: Formula, st_index=0) -> deque:
     """ For formula f creates formal output of the proof of the L-theorem.
 
     :param f: formula
@@ -94,7 +94,7 @@ def theorem_L(f: Formula, st_index: int) -> deque:
     return result
 
 
-def theorem_deduction(hypothesis: list, f: Formula, output: deque, st_index: int) -> deque:
+def theorem_deduction(hypothesis: list, f: Formula, output: deque, st_index=0) -> deque:
     """ Creates formal output for Г |- F -> G having formal output [F1, F2... Fn] for
     Г, F |- G, where G = Fn (deduction theorem).
 
@@ -123,8 +123,9 @@ def theorem_deduction(hypothesis: list, f: Formula, output: deque, st_index: int
             result.append((f_next, MESSAGE.format(f_next, f_next.print_form(), f'(MP) for {f_i} and  {f_i1}')))
 
         elif f_i == f:               # if F_i == F then it is enough to proof theorem L
-            tmp = theorem_L(f, i)
+            tmp = theorem_L(f, st_index + i)
             result += tmp
+            i += len(tmp) - 1
         elif f_i.by_modus_pones:     # if F_i was created as a result of any modus pones in the past
             f_pre1, f_pre2 = f_i.from_modus_pones
             tmp1 = f.implication(f_pre1)             # (F -> Fr)
@@ -143,14 +144,99 @@ def theorem_deduction(hypothesis: list, f: Formula, output: deque, st_index: int
 
             # adding to the deque
             result.append((f_i1, MESSAGE.format(f_i1, f_i1.print_form(), f'Axiom A2 for {f_pre1} and {f_pre2}')))
-            result.append((f_i2, MESSAGE.format(f_i2, f_i2.print_form(), f'(MP) for {f_i1} and {tmp2}')))
-            result.append((f_i3, MESSAGE.format(f_i3, f_i3.print_form(), f'(MP) for {tmp1} and {f_i2}')))
+            result.append((f_i2,
+                           MESSAGE.format(f_i2, f_i2.print_form(), f'(MP) for {f_i1} and {tmp2} ({tmp2} is above)')))
+            result.append((f_i3,
+                           MESSAGE.format(f_i3, f_i3.print_form(), f'(MP) for {tmp1} and {f_i2} ({tmp1} is above)')))
         else:
             raise Exception('something wrong')
+
+        i += 1
     return result
 
 
+def rule_S1(f_g: Formula, g_h: Formula, st_index=0):
+    """ Syllogism rule (S1).
+
+    :param f_g: Formula like F -> G
+    :param g_h: Formula like G -> H
+    :param st_index: first index of addition formula
+    :return: Formula F -> H, output for it - deque((formula, message for printing))
+    """
+    assert len(f_g.sons) > 1 and len(f_g.sons) > 1, f"couldn't use rule S1 to {f_g.print_form()} and {g_h.print_form()}"
+    assert f_g.sons[1] == g_h.sons[0], f"couldn't' use rule S1 to {f_g.print_form()} and {g_h.print_form()}"
+
+    f, g = f_g.sons
+    h = g_h.sons[1]
+
+    if isinstance(f, Var):     # if f_g is (f -> g) where f is var, f is need to be converted to formula
+        f = Formula(PASS, {f}, f)
+        f.name = f_g.sons[0].name
+
+    # creates formal output from f_g, g_h, f to h
+    f1 = f
+    f2 = f_g
+    f3 = g_h
+    f4 = modus_pones(f1, f2)
+    f5 = modus_pones(f4, f3)
+
+    # modify our formal output using deduction theorem
+    output = deque([(f1, ''), (f2, ''), (f3, ''), (f4, ''), (f5, '')])
+    output = theorem_deduction([f_g, g_h], f, output, st_index)
+    return f.implication(h), output
+
+
+def rule_S2(f_g_h: Formula, g: Formula, st_index=0):
+    """ Syllogism rule (S2)
+
+    :param f_g_h: Formula like (F -> (G -> H))
+    :param g: Formula
+    :param st_index: first index of addition formula
+    :return: Formula F -> H, output for it - deque((formula, message for printing))
+    """
+    assert len(f_g_h.sons) > 1 and len(f_g_h.sons[1].sons) > 1, \
+        f"couldn't use rule (S2) to {f_g_h.print_form()} and {g.print_form()}"
+
+    assert f_g_h.sons[1].sons[0] == g, f"couldn't use rule (S2) to {f_g_h.print_form()} and {g.print_form()}"
+
+    f1 = f_g_h.sons[0]         # creates formal output from f_g_h, g, f to h
+    f2 = g
+    f3 = f_g_h
+    f4 = modus_pones(f1, f3)
+    f5 = modus_pones(f2, f4)
+
+    # modify our formal output using deduction theorem
+    output = deque([(f1, ''), (f2, ''), (f3, ''), (f4, ''), (f5, '')])
+    output = theorem_deduction([f_g_h, g], f1, output, st_index)
+    return f1.implication(f_g_h.sons[1].sons[1]), output
+
+
+def theorem_T1(f: Formula, st_index=0):
+    output = deque()
+    f1 = axiom_A3(f.neg(), f)
+    f1.name = NAME.format(st_index)
+    output.append((f1, MESSAGE.format(f1, f1.print_form(), f'Axiom A3 for {f} and {f.neg()}')))
+
+    output += theorem_L(f.neg(), st_index=st_index + 1)
+
+    f2 = output[-1][0]       # !F -> !F
+    f3, tmp_output = rule_S2(f1, f2, st_index=st_index + len(output))
+    output += tmp_output
+
+    tmp = f.neg().neg()
+    tmp2 = f.neg()
+    f4 = axiom_A1(tmp, tmp2)
+    f4.name = NAME.format(st_index + len(output))
+    output.append((f4, MESSAGE.format(f4, f4.print_form(), f'Axiom A1 for {tmp} and {tmp2}')))
+
+    f5, tmp_output = rule_S1(f4, f3, st_index=st_index + len(output))
+    output += tmp_output
+    return output
+
+
 if __name__ == '__main__':
+
+    # ----------------------------------------test theorem L------------------------------------------------------------
     F = parse('(A -> B)')
     F.name = 'F'
     test_output = theorem_L(F, 1)
@@ -160,6 +246,7 @@ if __name__ == '__main__':
     for _, message in test_output:
         print(message)
 
+    # -----------------------------------test deduction theorem---------------------------------------------------------
     test_g = parse('(F -> F)')
     test_g.name = 'G'
     print('\n\n')
@@ -167,4 +254,40 @@ if __name__ == '__main__':
     print(f'Deduction theorem for G |- {F} -> {F}')
     test_output = theorem_deduction([], test_g, test_output, 6)
     for _, message in test_output:
+        print(message)
+    print('\n\n')
+
+    # ------------------------------------------test rule S1 -----------------------------------------------------------
+    a_b = parse('(A -> B)')
+    b_c = parse('(B -> C)')
+
+    a_b.name = 'H1'
+    b_c.name = 'H2'
+    print(f'H1: {a_b.print_form()},\nH2: {b_c.print_form()}')
+    rez, test_output = rule_S1(a_b, b_c, 1)
+    print(f'rule S1 for H1 and H2: {rez}')
+
+    for _, message in test_output:
+        print(message)
+
+    # -------------------------------------------test rule S2-----------------------------------------------------------
+    print('\n\n')
+    a_b_c = parse('(A -> (B -> C))')
+    b = parse('B')
+
+    a_b_c.name = 'T1'
+    b.name = 'T2'
+    print(f'T1: {a_b_c.print_form()},\nT2: {b.print_form()}')
+    rez, test_output = rule_S2(a_b_c, b, 0)
+
+    print(f'rule S2 for T1 and T2: {rez}')
+
+    for _, message in test_output:
+        print(message)
+
+    # -----------------------------------------test theorem T1----------------------------------------------------------
+    print('\n\n')
+    F = parse('F')
+    print('Theorem !!F -> F:')
+    for _, message in theorem_T1(F, 0):
         print(message)
