@@ -7,7 +7,7 @@
 # Taras Shevchenko National University of Kyiv
 # email: davendiy@gmail.com
 
-from parser import *
+from logic_expressions.parser import *
 
 print("Syntax: not - '!', implication - '->', and - '&', or - '|', equiv - '<->', xor - '^'")
 print("Each formula should be in parenthesis except variants when formula is just one variable.")

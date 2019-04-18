@@ -7,7 +7,7 @@
 # Taras Shevchenko National University of Kyiv
 # email: davendiy@gmail.com
 
-from formulas import *
+from logic_expressions.formulas import *
 import re
 
 

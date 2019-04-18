@@ -177,6 +177,20 @@ class Formula:
             self._is_tautology = success
         return self._is_tautology
 
+    def __eq__(self, other):
+        success = True
+        if isinstance(other, Var):
+            other = Formula(PASS, {other, }, other)
+
+        if len(self.sons) != len(other.sons) or self.main_con != other.main_con:
+            success = False
+
+        for el1, el2 in zip(self.sons, other.sons):
+            if el1 != el2:
+                success = False
+                break
+        return success
+
     def __call__(self, *args, **kwargs):
         """ Recursively compute value of formula.
 
