@@ -94,7 +94,7 @@ def theorem_L(f: Formula, st_index=0) -> deque:
     return result
 
 
-def theorem_deduction(hypothesis: list, f: Formula, output: deque, st_index=0) -> deque:
+def theorem_deduction(hypothesis: list, f: Formula, output: deque, st_index=0, indexation=True) -> deque:
     """ Creates formal output for Г |- F -> G having formal output [F1, F2... Fn] for
     Г, F |- G, where G = Fn (deduction theorem).
 
@@ -102,6 +102,7 @@ def theorem_deduction(hypothesis: list, f: Formula, output: deque, st_index=0) -
     :param f: last hypothesis (param hypothesis doesn't have this formula)
     :param output: deque((formula, message for printing)) from other function
     :param st_index: first index of addition formula
+    :param indexation: if True then each formula will have a name
     :return: deque((formula, message for printing))
     """
     result = deque()
@@ -113,10 +114,12 @@ def theorem_deduction(hypothesis: list, f: Formula, output: deque, st_index=0) -
 
             # formal output
             f_i1 = axiom_A1(f_i, f)
-            f_i1.name = NAME.format(st_index + i)
+            if indexation:
+                f_i1.name = NAME.format(st_index + i)
             i += 1
             f_next = modus_pones(f_i, f_i1)
-            f_next.name = NAME.format(st_index + i)
+            if indexation:
+                f_next.name = NAME.format(st_index + i)
 
             # adding to the deque
             result.append((f_i1, MESSAGE.format(f_i1, f_i1.print_form(), f'Axiom A1 for {f_i} and {f}')))
@@ -132,15 +135,18 @@ def theorem_deduction(hypothesis: list, f: Formula, output: deque, st_index=0) -
             tmp2 = f.implication(f_pre2)             # (F -> Fs)
 
             f_i1 = axiom_A2(f, f_pre1, f_i)          # (F -> (Fr -> Fi)) -> ((F -> Fr) -> (F -> Fi))
-            f_i1.name = NAME.format(st_index + i)
+            if indexation:
+                f_i1.name = NAME.format(st_index + i)
             i += 1
 
             f_i2 = modus_pones(tmp2, f_i1)           # (F -> (Fr -> Fi)) == (F -> Fs)
-            f_i2.name = NAME.format(st_index + i)
+            if indexation:
+                f_i2.name = NAME.format(st_index + i)
             i += 1
 
             f_i3 = modus_pones(tmp1, f_i2)
-            f_i3.name = NAME.format(st_index + i)
+            if indexation:
+                f_i3.name = NAME.format(st_index + i)
 
             # adding to the deque
             result.append((f_i1, MESSAGE.format(f_i1, f_i1.print_form(), f'Axiom A2 for {f_pre1} and {f_pre2}')))
@@ -212,6 +218,12 @@ def rule_S2(f_g_h: Formula, g: Formula, st_index=0):
 
 
 def theorem_T1(f: Formula, st_index=0):
+    """ Proofing theorem !!F -> F
+
+    :param f: formula
+    :param st_index: first index of addition formula
+    :return: deque((formula, message for printing))
+    """
     output = deque()
     f1 = axiom_A3(f.neg(), f)
     f1.name = NAME.format(st_index)
@@ -231,6 +243,58 @@ def theorem_T1(f: Formula, st_index=0):
 
     f5, tmp_output = rule_S1(f4, f3, st_index=st_index + len(output))
     output += tmp_output
+    return output
+
+
+def theorem_T2(f: Formula, st_index=0):
+    """ Proofing theorem !!F -> F
+
+    :param f: formula
+    :param st_index: first index of addition formula
+    :return: deque((formula, message for printing))
+    """
+    output = deque()
+    f1 = axiom_A3(f, f.neg().neg())
+    f1.name = NAME.format(st_index)
+    output.append((f1, MESSAGE.format(f1, f1.print_form(), f'Axiom A3 for {f} and {f.neg().neg()}')))
+
+    output += theorem_T1(f.neg(), st_index=st_index+1)
+
+    f2 = output[-1][0]     # !!!F -> !F
+
+    f3 = modus_pones(f2, f1)
+    f3.name = NAME.format(st_index + len(output))
+    output.append((f3, MESSAGE.format(f3, f3.print_form(), f'(MP) for {f2} and {f1}')))
+
+    f4 = axiom_A1(f, f.neg().neg().neg())
+    f4.name = NAME.format(st_index + len(output))
+    output.append((f4, MESSAGE.format(f4, f4.print_form(), f'Axiom A1 for {f} and {f.neg().neg().neg()}')))
+
+    f5, tmp_output = rule_S1(f4, f3, st_index=len(output))
+    output += tmp_output
+    return output
+
+
+def theorem_T3(f: Formula, g: Formula, st_index=0):
+
+    f1 = f.neg()                # !F
+    f2 = f                      # F
+    f3 = axiom_A1(f, g.neg())   # F -> (!G -> F)
+    f4 = modus_pones(f2, f3)    # !G -> F
+    f5 = axiom_A1(f1, g.neg())  # !F -> (!G -> !F)
+    f6 = modus_pones(f1, f5)    # !G -> !F
+    f7 = axiom_A3(f, g)         # (!G -> !F) -> ((!G -> F) -> G)
+    f8 = modus_pones(f6, f7)    # (!B -> A) -> B
+    f9 = modus_pones(f4, f8)    # B
+
+    output = deque([(f1, ''), (f2, ''),
+                    (f3, ''), (f4, ''),
+                    (f5, ''), (f6, ''),
+                    (f7, ''), (f8, ''),
+                    (f9, '')])
+
+    output = theorem_deduction([f1], f2, output, indexation=False)
+    output = theorem_deduction([], f1, output, st_index=st_index)
     return output
 
 
@@ -290,4 +354,19 @@ if __name__ == '__main__':
     F = parse('F')
     print('Theorem !!F -> F:')
     for _, message in theorem_T1(F, 0):
+        print(message)
+
+    # -----------------------------------------test theorem T2----------------------------------------------------------
+    print('\n\n')
+    F = parse('F')
+    print('Theorem F -> !!F:')
+    for _, message in theorem_T2(F, 0):
+        print(message)
+
+    # -----------------------------------------test theorem T3----------------------------------------------------------
+    print('\n\n')
+    F = parse('F')
+    G = parse('G')
+    print('Theorem !F -> (F -> G):')
+    for _, message in theorem_T3(F, G, 0):
         print(message)
