@@ -150,4 +150,4 @@ if __name__ == '__main__':
 
     F = parse('(A -> (!(!A)))')
     print('F = ', F)
-    print('=|F:', F.check_tautology())
+    print('|=F:', F.check_tautology())

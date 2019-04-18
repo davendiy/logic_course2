@@ -73,6 +73,9 @@ class Var:
         assert value in (0, 1, True, False), 'bad value for variable'
         self._val = bool(value)
 
+    def copy(self):
+        return self
+
     def __call__(self, *args, **kwargs):
         return self._val
 
@@ -91,6 +94,9 @@ class Formula:
 
     Defines recursively just like math definition.
     """
+
+    print_name = False
+
     def __init__(self, main_con, variables: set, *sons):
         """ Create the formula in logic of utterances with the given main connectivity,
         that have given variables and subformulas
@@ -113,6 +119,11 @@ class Formula:
         self.sons = sons
         self.vars = variables
         self._is_tautology = None
+        self.is_axiom = False        # it is True if we created this formula from scheme of axioms
+        self.name = ''              # for norm output
+
+        self.by_modus_pones = False
+        self.from_modus_pones = ()
 
     def neg(self):
         """ !self
@@ -177,6 +188,19 @@ class Formula:
             self._is_tautology = success
         return self._is_tautology
 
+    def copy(self):
+        return Formula(self.main_con, self.vars, *self.sons)
+
+    def print_form(self):
+        """ Print formula's representation
+        """
+        if self.main_con in BINARY:
+            return LEFT_PAR + str(self.sons[0]) + self.main_con + str(self.sons[1]) + RIGHT_PAR
+        elif self.main_con != PASS:
+            return LEFT_PAR + self.main_con + str(self.sons[0]) + RIGHT_PAR
+        else:
+            return str(self.sons[0])
+
     def __eq__(self, other):
         success = True
         if isinstance(other, Var):
@@ -199,12 +223,12 @@ class Formula:
         return FUNCTIONS[self.main_con](*[el() for el in self.sons])
 
     def __str__(self):
-        if self.main_con in BINARY:
-            return LEFT_PAR + str(self.sons[0]) + self.main_con + str(self.sons[1]) + RIGHT_PAR
-        elif self.main_con != PASS:
-            return LEFT_PAR + self.main_con + str(self.sons[0]) + RIGHT_PAR
+        """ If Formula.print_name == True, prints its name instead formula
+        """
+        if Formula.print_name and self.name:
+            return self.name
         else:
-            return str(self.sons[0])
+            return self.print_form()
 
     def __repr__(self):
         return f'Formula({self.main_con}, {self.vars}, {self.sons})'
