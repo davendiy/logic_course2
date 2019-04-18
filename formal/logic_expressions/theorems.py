@@ -153,18 +153,18 @@ def theorem_deduction(hypothesis: list, f: Formula, output: deque, st_index: int
 if __name__ == '__main__':
     F = parse('(A -> B)')
     F.name = 'F'
-    output = theorem_L(F, 1)
+    test_output = theorem_L(F, 1)
 
     print(f'{F} = {F.print_form()}')
     print(f'Theorem L for {F}')
-    for tmp, mess in output:
-        print(mess)
+    for _, message in test_output:
+        print(message)
 
     test_g = parse('(F -> F)')
     test_g.name = 'G'
     print('\n\n')
     print(f'G = {test_g.print_form()}')
     print(f'Deduction theorem for G |- {F} -> {F}')
-    output = theorem_deduction([], test_g, output, 6)
-    for tmp, mess in output:
-        print(mess)
+    test_output = theorem_deduction([], test_g, test_output, 6)
+    for _, message in test_output:
+        print(message)
