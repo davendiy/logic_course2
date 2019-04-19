@@ -1,0 +1,7 @@
+F = (A->B)
+Theorem L for F
+F_1 = ((F->((F->F)->F))->((F->(F->F))->(F->F)))     basis: Axiom A2 for F, (F->F) and F
+F_2 = (F->((F->F)->F))     basis: Axiom A1 for F and (F->F)
+F_3 = ((F->(F->F))->(F->F))     basis: (MP) for F_2 and F_1
+F_4 = (F->(F->F))     basis: Axiom A1 for F and F
+F_5 = (F->F)     basis: (MP) for F_4 and F_3

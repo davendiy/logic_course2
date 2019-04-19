@@ -1,0 +1,21 @@
+
+
+
+T1: (A->(B->C)),
+T2: B
+rule S2 for T1 and T2: (A->C)
+F_0 = ((A->((A->A)->A))->((A->(A->A))->(A->A)))     basis: Axiom A2 for A, (A->A) and A
+F_1 = (A->((A->A)->A))     basis: Axiom A1 for A and (A->A)
+F_2 = ((A->(A->A))->(A->A))     basis: (MP) for F_1 and F_0
+F_3 = (A->(A->A))     basis: Axiom A1 for A and A
+F_4 = (A->A)     basis: (MP) for F_3 and F_2
+F_5 = (T2->(A->T2))     basis: Axiom A1 for T2 and A
+F_6 = (A->T2)     basis: (MP) for T2 and  F_5
+F_7 = (T1->(A->T1))     basis: Axiom A1 for T1 and A
+F_8 = (A->T1)     basis: (MP) for T1 and  F_7
+F_9 = ((A->(A->(B->C)))->((A->A)->(A->(B->C))))     basis: Axiom A2 for A and T1
+F_10 = ((A->A)->(A->(B->C)))     basis: (MP) for F_9 and (A->T1) ((A->T1) is above)
+F_11 = (A->(B->C))     basis: (MP) for (A->A) and F_10 ((A->A) is above)
+F_12 = ((A->(T2->C))->((A->T2)->(A->C)))     basis: Axiom A2 for T2 and (B->C)
+F_13 = ((A->T2)->(A->C))     basis: (MP) for F_12 and (A->(B->C)) ((A->(B->C)) is above)
+F_14 = (A->C)     basis: (MP) for (A->T2) and F_13 ((A->T2) is above)

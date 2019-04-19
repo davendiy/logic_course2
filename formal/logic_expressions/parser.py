@@ -7,7 +7,10 @@
 # Taras Shevchenko National University of Kyiv
 # email: davendiy@gmail.com
 
-from formulas import *
+""" Formulas of propositional logic parser
+"""
+
+from logic_expressions.formulas import *
 import re
 
 
@@ -150,4 +153,4 @@ if __name__ == '__main__':
 
     F = parse('(A -> (!(!A)))')
     print('F = ', F)
-    print('=|F:', F.check_tautology())
+    print('|=F:', F.check_tautology())
