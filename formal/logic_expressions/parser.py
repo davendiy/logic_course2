@@ -7,6 +7,9 @@
 # Taras Shevchenko National University of Kyiv
 # email: davendiy@gmail.com
 
+""" Formulas of propositional logic parser
+"""
+
 from logic_expressions.formulas import *
 import re
 

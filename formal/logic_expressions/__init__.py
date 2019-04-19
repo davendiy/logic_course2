@@ -9,18 +9,4 @@
 
 from .formulas import *
 from .parser import *
-
-__all__ = ['Formula',
-           'Var',
-           'parse',
-           'IMPLICATION',
-           'OR',
-           'AND',
-           'EQUIV',
-           'NOT',
-           'PASS',
-           'XOR',
-           'CONNECTIONS',
-           'BINARY',
-           'UNARY',
-           ]
+from .theorems import *

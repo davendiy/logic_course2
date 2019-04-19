@@ -1,0 +1,18 @@
+H1: (A->B),
+H2: (B->C)
+rule S1 for H1 and H2: (A->C)
+F_1 = ((A->((A->A)->A))->((A->(A->A))->(A->A)))     basis: Axiom A2 for A, (A->A) and A
+F_2 = (A->((A->A)->A))     basis: Axiom A1 for A and (A->A)
+F_3 = ((A->(A->A))->(A->A))     basis: (MP) for F_2 and F_1
+F_4 = (A->(A->A))     basis: Axiom A1 for A and A
+F_5 = (A->A)     basis: (MP) for F_4 and F_3
+F_6 = (H1->(A->H1))     basis: Axiom A1 for H1 and A
+F_7 = (A->H1)     basis: (MP) for H1 and  F_6
+F_8 = (H2->(A->H2))     basis: Axiom A1 for H2 and A
+F_9 = (A->H2)     basis: (MP) for H2 and  F_8
+F_10 = ((A->(A->B))->((A->A)->(A->B)))     basis: Axiom A2 for A and H1
+F_11 = ((A->A)->(A->B))     basis: (MP) for F_10 and (A->H1) ((A->H1) is above)
+F_12 = (A->B)     basis: (MP) for (A->A) and F_11 ((A->A) is above)
+F_13 = ((A->(B->C))->((A->B)->(A->C)))     basis: Axiom A2 for B and H2
+F_14 = ((A->B)->(A->C))     basis: (MP) for F_13 and (A->H2) ((A->H2) is above)
+F_15 = (A->C)     basis: (MP) for (A->B) and F_14 ((A->B) is above)

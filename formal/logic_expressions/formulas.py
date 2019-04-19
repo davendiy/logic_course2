@@ -38,7 +38,7 @@ FUNCTIONS = {OR: lambda a, b: a or b,
 
 
 class Var:
-    """ Variable in logic of utterances.
+    """ Variable in propositional logic.
 
     Might to be True or False (1 or 0 respectively)
     """
@@ -68,6 +68,7 @@ class Var:
         assert name.isidentifier()     # check name
         self.name = name
         self._val = 0
+        self.operations_count = 0      # for Kalmar theorem
 
     def set_val(self, value):
         assert value in (0, 1, True, False), 'bad value for variable'
@@ -86,11 +87,11 @@ class Var:
         return self.name
 
     def __repr__(self):
-        return f'Var({self.name})'
+        return f"Var('{self.name}')"
 
 
 class Formula:
-    """ Formula in logic of utterances
+    """ Formula in propositional logic
 
     Defines recursively just like math definition.
     """
@@ -120,10 +121,13 @@ class Formula:
         self.vars = variables
         self._is_tautology = None
         self.is_axiom = False        # it is True if we created this formula from scheme of axioms
-        self.name = ''              # for norm output
+        self.name = ''               # for norm output
 
         self.by_modus_pones = False
         self.from_modus_pones = ()
+        self.operations_count = sum(son.operations_count for son in self.sons)   # for Kalmar theorem
+        if main_con != PASS:
+            self.operations_count += 1
 
     def neg(self):
         """ !self
@@ -187,6 +191,12 @@ class Formula:
                     break
             self._is_tautology = success
         return self._is_tautology
+
+    def pow_alpha(self):
+        if self.__call__():
+            return self
+        else:
+            return self.neg()
 
     def copy(self):
         return Formula(self.main_con, self.vars, *self.sons)

@@ -7,8 +7,14 @@
 # Taras Shevchenko National University of Kyiv
 # email: davendiy@gmail.com
 
+""" Axioms and theorems for formal propositional logic
+"""
+
+
 from collections import deque
-from logic_expressions import *
+from .parser import *
+from .formulas import *
+from itertools import product
 
 NAME = 'F_{}'
 MESSAGE = '{} = {}     basis: {}'
@@ -281,7 +287,7 @@ def theorem_T2(f: Formula, st_index=0, indexation=True):
         f4.name = NAME.format(st_index + len(output))
     output.append((f4, MESSAGE.format(f4, f4.print_form(), f'Axiom A1 for {f} and {f.neg().neg().neg()}')))
 
-    f5, tmp_output = rule_S1(f4, f3, st_index=len(output), indexation=indexation)
+    f5, tmp_output = rule_S1(f4, f3, st_index=st_index + len(output), indexation=indexation)
     output += tmp_output
     return output
 
@@ -318,7 +324,7 @@ def theorem_T3(f: Formula, g: Formula, st_index=0, indexation=True):
 
 
 def theorem_T4(f: Formula, g: Formula, st_index=0, indexation=True):
-    """ Proofing theorem (!G -> !F) -> (G -> F)
+    """ Proofing theorem (!G -> !F) -> (F -> G)
 
     :param f: formula
     :param g: formula
@@ -339,7 +345,7 @@ def theorem_T4(f: Formula, g: Formula, st_index=0, indexation=True):
 
 
 def theorem_T5(f: Formula, g: Formula, st_index=0, indexation=True):
-    """ Proofing theorem (G -> F) -> (!G -> !F)
+    """ Proofing theorem (F -> G) -> (!G -> !F)
 
     :param f: formula
     :param g: formula
@@ -405,99 +411,217 @@ def theorem_T6(f: Formula, g: Formula, st_index=0, indexation=True):
     return output
 
 
+def theorem_T7(f: Formula, g: Formula, st_index=0, indexation=True) -> deque:
+
+    output = deque()
+    if isinstance(f, Var):
+        f = Formula(PASS, {f}, f)
+    f0 = f.implication(g)
+    output.append((f0, ''))
+    output += theorem_T5(f, g, indexation=False)
+
+    f1 = output[-1][0]    # (F -> G) -> (!G -> !F)
+    f2 = axiom_A3(f, g)
+    output.append((f2, ''))
+    f3, tmp_output = rule_S1(f1, f2, indexation=False)
+    output += tmp_output
+    f4 = modus_pones(f0, f3)
+    output.append((f4, ''))
+
+    output += theorem_T4(g.neg(), f, indexation=False)
+    f5 = output[-1][0]          # (!F -> !!G) -> (!G -> F)
+
+    output += _lemma_T7(f, g, indexation=False)
+    f6 = output[-1][0]         # (!F -> G) -> (!F -> !!G)
+
+    f7, tmp_output = rule_S1(f6, f5, indexation=False)
+    output += tmp_output
+
+    f8, tmp_output = rule_S1(f7, f4, indexation=False)
+    output += tmp_output
+
+    return theorem_deduction([], f0, output, st_index=st_index, indexation=indexation)
+
+
+def _lemma_T7(f: Formula, g: Formula, st_index=0, indexation=True):
+    """ Proofing (!F -> G) -> (!F -> !!G)
+
+    :param f: formula
+    :param g: formula
+    :param st_index: first index of addition formula
+    :param indexation: if True then each formula will have a name
+    :return: deque((formula, message for printing))
+    """
+    f1 = f.neg()
+    f2 = f.neg().implication(g)
+    f3 = modus_pones(f1, f2)
+    tmp_output = theorem_T2(g)
+    f4 = tmp_output[-1][0]
+    f5 = modus_pones(f3, f4)
+
+    output = deque([(f1, ''), (f2, ''), (f3, '')]) + tmp_output + deque([(f4, ''), (f5, '')])
+    output = theorem_deduction([f2], f1, output, indexation=False)
+    output = theorem_deduction([], f2, output, st_index=st_index, indexation=indexation)
+    return output
+
+
+def lemma_Kalmar(f: Formula, st_index=0, indexation=True) -> deque:
+    """ Kalmar's lemma for f and its variables that already have own values
+
+    :param f: Formula
+    :param st_index: first index of addition formula
+    :param indexation: if True then each formula will have a name
+    :return: deque((formula, message for printing))
+    """
+    if f.operations_count == 0:
+        tmp = f.pow_alpha()
+        if indexation:
+            tmp.name = NAME.format(st_index)
+        output = deque([(tmp, MESSAGE.format(tmp, tmp.print_form(),
+                                             'from hypothesis'))])
+
+    else:
+        if f.main_con == NOT:
+            if f():
+                output = lemma_Kalmar(f.sons[0], st_index=st_index, indexation=indexation)
+            else:
+                output = lemma_Kalmar(f.sons[0], st_index=st_index, indexation=indexation)
+                output += theorem_T2(output[-1][0], st_index=st_index + len(output), indexation=indexation)
+        else:
+            if not f.sons[0]():
+                output = lemma_Kalmar(f.sons[0], st_index=st_index, indexation=indexation)
+                g = output[-1][0]
+                output += theorem_T3(f.sons[0], f.sons[1], st_index=st_index+len(output), indexation=indexation)
+                tmp = output[-1][0]
+                res = modus_pones(g, tmp)
+                if indexation:
+                    res.name = NAME.format(st_index+len(output))
+                output.append((res, MESSAGE.format(res, res.print_form(), f'(MP) to {g} and {tmp}')))
+            elif f.sons[1]():
+                output = lemma_Kalmar(f.sons[1], st_index=st_index, indexation=indexation)
+                h = output[-1][0]
+                tmp = axiom_A1(h, f.sons[0])
+                if indexation:
+                    tmp.name = NAME.format(st_index + len(output))
+                output.append((tmp, MESSAGE.format(tmp, tmp.print_form(), f'Axiom A1 for {h} and {f.sons[0]}')))
+                res = modus_pones(h, tmp)
+                if indexation:
+                    res.name = NAME.format(st_index + len(output))
+
+                output.append((res, MESSAGE.format(res, res.print_form(), f'(MP) to {h} and {tmp}')))
+            else:
+                output = lemma_Kalmar(f.sons[0], st_index=st_index, indexation=indexation)
+                g = output[-1][0]
+                output += lemma_Kalmar(f.sons[1], st_index=st_index, indexation=indexation)
+                h = output[-1][0]
+
+                output += theorem_T6(f.sons[0], f.sons[1], st_index=st_index+len(output), indexation=indexation)
+                tmp = output[-1][0]
+                res = modus_pones(g, tmp)
+                res2 = modus_pones(h, res)
+
+                if indexation:
+                    res.name = NAME.format(st_index + len(output))
+                    res2.name = NAME.format(st_index + len(output) + 1)
+
+                output.append((res, MESSAGE.format(res, res.print_form(), f'(MP) for {g} and {tmp}')))
+                output.append((res2, MESSAGE.format(res2, res2.print_form(), f'(MP) for {h} and {res}')))
+
+    return output
+
+
+def adequacy_theorem(f: Formula, st_index=0, tmp_indexation=True):
+    """ Proofing tautology F like a theorem using algorithm from
+    adequacy theorem.
+
+    :param f: Formula (tautology)
+    :param st_index: first index of addition formula
+    :param tmp_indexation: if True then each formula will have a name
+    :return: deque((formula, message for printing))
+    """
+    if not f.check_tautology():
+        raise ValueError(f"{f} isn't tautology!")
+
+    # -----------------build the outputs for all the combinations of variables value using Kalmar lemma-----------------
+    outputs = {}
+    variables = list(f.vars)
+    for el in product([True, False], repeat=len(variables)):
+        [var.set_val(val) for var, val in zip(variables, el)]
+        output_id = ''.join([str(int(var())) for var in variables])
+        outputs[output_id] = lemma_Kalmar(f, indexation=False)    # dictionary {sequence of variables values: output}
+
+    # -----------------------------do all the actions without the indexing----------------------------------------------
+    while len(variables) > 1:
+        last_var = variables.pop()
+        for el in product([True, False], repeat=len(variables)):
+            [var.set_val(val) for var, val in zip(variables, el)]         # set value for n-1 variables
+            output_id = ''.join([str(int(var())) for var in variables])   # sequence of n-1 variables
+
+            last_var.set_val(1)
+            tmp_output_id = output_id + str(int(last_var()))
+
+            # use the deduction theorem to build output from n-1 variables
+            hypothesis = [Formula(PASS, {var}, var).pow_alpha() for var in variables]
+            tmp_output = theorem_deduction(hypothesis, Formula(PASS, {last_var}, last_var).pow_alpha(),
+                                           outputs[tmp_output_id], indexation=False)
+
+            last_var.set_val(0)
+            tmp_output_id = output_id + str(int(last_var()))
+
+            tmp_output2 = theorem_deduction(hypothesis, Formula(PASS, {last_var}, last_var).pow_alpha(),
+                                            outputs[tmp_output_id], indexation=False)
+
+            f1 = tmp_output[-1][0]    # xn -> F
+            f2 = tmp_output2[-1][0]   # !xn -> F
+
+            tmp_output3 = theorem_T7(last_var, f, indexation=False)   # (xn -> F) -> ((!xn -> F) -> F)
+
+            f3 = tmp_output3[-1][0]   # (xn -> F) -> ((!xn -> F) -> F)
+            f4 = modus_pones(f1, f3)
+            f5 = modus_pones(f2, f4)
+
+            output = tmp_output + tmp_output2 + tmp_output3
+            output.append((f4, ''))
+            output.append((f5, ''))
+            outputs[output_id] = output
+
+    # ----------------------------do the last action with indexing (same with above)------------------------------------
+    last_var = variables.pop()
+    last_var.set_val(1)
+    tmp_output_id = str(int(last_var()))
+    tmp_output = theorem_deduction([], Formula(PASS, {last_var}, last_var).pow_alpha(),
+                                   outputs[tmp_output_id], st_index=st_index, indexation=tmp_indexation)
+
+    last_var.set_val(0)
+    tmp_output_id = str(int(last_var()))
+    tmp_output2 = theorem_deduction([], Formula(PASS, {last_var}, last_var).pow_alpha(),
+                                    outputs[tmp_output_id], st_index=st_index + len(tmp_output), indexation=tmp_indexation)
+
+    f1 = tmp_output[-1][0]
+    f2 = tmp_output2[-1][0]
+
+    tmp_output3 = theorem_T7(last_var, f, st_index=st_index + len(tmp_output) + len(tmp_output2), indexation=tmp_indexation)
+    output = tmp_output + tmp_output2 + tmp_output3
+
+    f3 = tmp_output3[-1][0]     # (xn -> F) -> ((!xn -> F) -> F)
+    f4 = modus_pones(f1, f3)
+    if tmp_indexation:
+        f4.name = NAME.format(st_index + len(output))
+    f5 = modus_pones(f2, f4)
+    if tmp_indexation:
+        f5.name = NAME.format(st_index + len(output) + 1)
+
+    output.append((f4, MESSAGE.format(f4, f4.print_form(), f'(MP) for {f1} and {f3}')))
+    output.append((f5, MESSAGE.format(f5, f5.print_form(), f'(MP) for {f2} and {f4}')))
+    return output
+
+
 if __name__ == '__main__':
 
-    # ----------------------------------------test theorem L------------------------------------------------------------
-    F = parse('(A -> B)')
-    F.name = 'F'
-    test_output = theorem_L(F, 1)
-
-    print(f'{F} = {F.print_form()}')
-    print(f'Theorem L for {F}')
-    for _, message in test_output:
-        print(message)
-
-    # -----------------------------------test deduction theorem---------------------------------------------------------
-    test_g = parse('(F -> F)')
-    test_g.name = 'G'
-    print('\n\n')
-    print(f'G = {test_g.print_form()}')
-    print(f'Deduction theorem for G |- {F} -> {F}')
-    test_output = theorem_deduction([], test_g, test_output, 6)
-    for _, message in test_output:
-        print(message)
-    print('\n\n')
-
-    # ------------------------------------------test rule S1 -----------------------------------------------------------
-    a_b = parse('(A -> B)')
-    b_c = parse('(B -> C)')
-
-    a_b.name = 'H1'
-    b_c.name = 'H2'
-    print(f'H1: {a_b.print_form()},\nH2: {b_c.print_form()}')
-    rez, test_output = rule_S1(a_b, b_c, 1)
-    print(f'rule S1 for H1 and H2: {rez}')
-
-    for _, message in test_output:
-        print(message)
-
-    # -------------------------------------------test rule S2-----------------------------------------------------------
-    print('\n\n')
-    a_b_c = parse('(A -> (B -> C))')
-    b = parse('B')
-
-    a_b_c.name = 'T1'
-    b.name = 'T2'
-    print(f'T1: {a_b_c.print_form()},\nT2: {b.print_form()}')
-    rez, test_output = rule_S2(a_b_c, b, 0)
-
-    print(f'rule S2 for T1 and T2: {rez}')
-
-    for _, message in test_output:
-        print(message)
-
-    # -----------------------------------------test theorem T1----------------------------------------------------------
-    print('\n\n')
-    F = parse('F')
-    print('Theorem !!F -> F:')
-    for _, message in theorem_T1(F, 0):
-        print(message)
-
-    # -----------------------------------------test theorem T2----------------------------------------------------------
-    print('\n\n')
-    F = parse('F')
-    print('Theorem F -> !!F:')
-    for _, message in theorem_T2(F, 0):
-        print(message)
-
-    # -----------------------------------------test theorem T3----------------------------------------------------------
+    # -----------------------------------------test lemma for theorem T7------------------------------------------------
     print('\n\n')
     F = parse('F')
     G = parse('G')
-    print('Theorem !F -> (F -> G):')
-    for _, message in theorem_T3(F, G, 0):
-        print(message)
-
-    # -----------------------------------------test theorem T4----------------------------------------------------------
-    print('\n\n')
-    F = parse('F')
-    G = parse('G')
-    print('Theorem (!G -> !F) -> (F -> G):')
-    for _, message in theorem_T4(F, G, 0):
-        print(message)
-
-    # -----------------------------------------test theorem T5----------------------------------------------------------
-    print('\n\n')
-    F = parse('F')
-    G = parse('G')
-    print('Theorem (F -> G) -> (!G -> !F):')
-    for _, message in theorem_T5(F, G, 0):
-        print(message)
-
-    # -----------------------------------------test theorem T6----------------------------------------------------------
-    print('\n\n')
-    F = parse('F')
-    G = parse('G')
-    print('Theorem F -> (!G -> !(F -> G))')
-    for _, message in theorem_T6(F, G, 0):
+    print('Theorem (!F -> G) -> (!F -> !!G)')
+    for _, message in _lemma_T7(F, G, 0):
         print(message)
