@@ -8,6 +8,7 @@
 # email: davendiy@gmail.com
 
 from itertools import product
+from threading import RLock
 
 # Global constants for operations
 IMPLICATION = '->'
@@ -37,32 +38,26 @@ FUNCTIONS = {OR: lambda a, b: a or b,
              }
 
 
-class Var:
+class NamewiseSingleton(type):
+
+    _lock = RLock()
+
+    def __init__(cls, name, bases, dct):
+        super().__init__(name, bases, dct)
+        cls.__instances = {}
+
+    def __call__(cls, name, *args, **kwargs):
+        if name not in cls.__instances:
+            with cls._lock:
+                cls.__instances[name] = super().__call__(name, *args, **kwargs)
+        return cls.__instances[name]
+
+
+class Var(metaclass=NamewiseSingleton):
     """ Variable in propositional logic.
 
     Might to be True or False (1 or 0 respectively)
     """
-
-    _vars = {}
-
-    def __new__(cls, name):
-        """ This is because of we need to have only one representative for each variable.
-
-        # For example
-        >>> x1 = Var('x1')
-        >>> x2 = Var('x1')
-        >>> x1 == x2
-        True
-        >>> x1 is x2      # it means that x1 and x2 are hrefs on the one object
-        True
-
-        :param name: name of variable
-        :return: object
-        """
-        if name not in Var._vars:
-            Var._vars[name] = object.__new__(cls)
-
-        return Var._vars[name]
 
     def __init__(self, name: str):
         assert name.isidentifier()     # check name
